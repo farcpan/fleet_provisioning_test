@@ -1,6 +1,9 @@
 // import { CreatePolicyCommand, IAMClient } from "@aws-sdk/client-iam";
 import { IoTClient, CreatePolicyCommand } from "@aws-sdk/client-iot";
 
+/**
+ * PreProvisioning Hook
+ */
 export const handler = async (event: any, context: any) => {
   const region = process.env["region"];
   const account = process.env["account"];
