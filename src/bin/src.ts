@@ -8,6 +8,7 @@ const context = new ContextParameters(app);
 new MainStack(app, "fleet-provisioning-test-main-stack", {
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT!,
+    region: context.stageParameters.region,
   },
   context: context,
 });

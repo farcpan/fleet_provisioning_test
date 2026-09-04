@@ -4,7 +4,7 @@ import { readFileSync } from 'fs';
 export interface StageParameters {
 	region: string;
 	iot: {
-		claimCertificateArn?: string;
+		claimCertificateArn: string;
 	}
 }
 export class ContextParameters {
