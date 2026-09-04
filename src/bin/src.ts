@@ -1,10 +1,13 @@
 import * as cdk from "aws-cdk-lib";
 import { MainStack } from "../lib/main-stack";
+import { ContextParameters } from "../utils/context";
 
 const app = new cdk.App();
+const context = new ContextParameters(app);
+
 new MainStack(app, "fleet-provisioning-test-main-stack", {
   env: {
-    region: "ap-northeast-1",
-    account: "910136156309",
+    account: process.env.CDK_DEFAULT_ACCOUNT!,
   },
+  context: context,
 });
