@@ -1,5 +1,5 @@
 certs/
-device/venv
+device/.venv
 device/*.crt
 device/*.key
 

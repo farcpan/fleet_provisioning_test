@@ -25,23 +25,15 @@ export class MainStack extends Stack {
     super(scope, id, props);
 
     // Lambda
-    const iotTriggeredLambdaFunctionPath = join(
-      __dirname,
-      "../lambdas/index.ts"
-    );
-    const iotTriggeredlambdaFunction = new NodejsFunction(
-      this,
-      "FleetProvisioningTest_Function",
-      {
-        functionName: "FleetProvisioningTest_Function",
-        entry: iotTriggeredLambdaFunctionPath,
-        handler: "handler",
-        logRetention: RetentionDays.ONE_DAY,
-        timeout: Duration.seconds(30),
-        runtime: Runtime.NODEJS_LATEST,
-      }
-    );
-
+    const iotTriggeredLambdaFunctionPath = join(__dirname, "../lambdas/index.ts");
+    const iotTriggeredlambdaFunction = new NodejsFunction(this, "FleetProvisioningTest_Function", {
+      functionName: "FleetProvisioningTest_Function",
+      entry: iotTriggeredLambdaFunctionPath,
+      handler: "handler",
+      logRetention: RetentionDays.ONE_DAY,
+      timeout: Duration.seconds(30),
+      runtime: Runtime.NODEJS_22_X,
+    });
     iotTriggeredlambdaFunction.addToRolePolicy(
       new PolicyStatement({
         actions: ["iot:*"],
@@ -51,26 +43,19 @@ export class MainStack extends Stack {
     );
 
     /// pre Provision hook
-    const preProvisionHookLambdaFunctionPath = join(
-      __dirname,
-      "../lambdas/hook.ts"
-    );
-    const preProvisionHookLambdaFunction = new NodejsFunction(
-      this,
-      "PreProvisionHookLambda_Function",
-      {
-        functionName: "PreProvisionHookLambda_Function",
-        entry: preProvisionHookLambdaFunctionPath,
-        handler: "handler",
-        logRetention: RetentionDays.ONE_DAY,
-        timeout: Duration.seconds(10),
-        runtime: Runtime.NODEJS_LATEST,
-        environment: {
-          account: props.env.account,
-          region: props.env.region,
-        },
-      }
-    );
+    const preProvisionHookLambdaFunctionPath = join(__dirname, "../lambdas/hook.ts");
+    const preProvisionHookLambdaFunction = new NodejsFunction(this, "PreProvisionHookLambda_Function", {
+      functionName: "PreProvisionHookLambda_Function",
+      entry: preProvisionHookLambdaFunctionPath,
+      handler: "handler",
+      logRetention: RetentionDays.ONE_DAY,
+      timeout: Duration.seconds(10),
+      runtime: Runtime.NODEJS_LATEST,
+      environment: {
+        account: props.env.account,
+        region: props.env.region,
+      },
+    });
     preProvisionHookLambdaFunction.addPermission(
       "permission-iotcore-to-lambda",
       {
@@ -168,14 +153,14 @@ export class MainStack extends Stack {
     };
 
     // Template本体
-    // preProvisioningHookで前述のLambda関数Arnを指定する
+    // preProvisioningHook に前述のLambda関数Arnを指定する
     // ThingNameは FleetProvisioningTest_Thing_{SerialNumber}で定義する
     new CfnProvisioningTemplate(this, "fleet-provisioning-template", {
       templateName: `fleet-provision-template`,
       enabled: true,
       provisioningRoleArn: provisioningRole.roleArn,
       preProvisioningHook: {
-        targetArn: preProvisionHookLambdaFunction.functionArn,
+        targetArn: preProvisionHookLambdaFunction.functionArn,  // PreProvisionHook Lambda関数のARNを指定する
       },
       templateBody: JSON.stringify(templateBodyJson),
     });
