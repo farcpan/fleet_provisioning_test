@@ -14,7 +14,7 @@ from paho.mqtt import client as mqtt_client
 # ----------------------------------------------------------------------
 
 # serial number
-serial_number = "S00001"
+serial_number = "S00002"
 
 # deployment stage
 stage_name = "dev"
