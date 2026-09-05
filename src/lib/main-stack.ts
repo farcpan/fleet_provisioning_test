@@ -354,7 +354,7 @@ export class MainStack extends Stack {
           },
         ],
         awsIotSqlVersion: "2016-03-23",
-        sql: `SELECT topic() AS topic, clientid() AS client_id, * FROM 'mqtt/${stageName}/#'`,
+        sql: `SELECT topic() AS topic, clientid() AS client_id, principal() AS principal, * FROM 'mqtt/${stageName}/#'`,
       },
     });
 
