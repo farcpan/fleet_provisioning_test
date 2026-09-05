@@ -20,9 +20,9 @@ import { ContextParameters } from "../utils/context";
 // !! 注意事項 !!
 ///////////////////////////////////////////////////////////////////////////
 // - Topic定義には必ず環境名（prd/stg/devなど）を入れ、通信が混在しないようにすること
-// - 現状の実装では、シリアル番号からThingNameを構築する際に、
-//   MonitorDev_{stageName}_{serialNumber}としている。
-//   MQTT接続時のClient IDは必ずThingNameと一致させること。
+// - 現状の実装では、シリアル番号からThingNameを構築する際に、MonitorDev_{stageName}_{serialNumber}としている。
+//   証明書取得後のMQTT接続時のClient IDは必ずThingNameと一致させること。
+// - Claim時にはClientIDをProvision_{serialNumber}とする必要がある。
 ///////////////////////////////////////////////////////////////////////////
 
 interface MainStackProps extends StackProps {
@@ -107,7 +107,7 @@ export class MainStack extends Stack {
     // IoT Policy: Provisioning後に全デバイスで共有するPolicy
     // ---------------------------------------------------------------------
     // Thing Policy Variablesを使い、1デバイスが自分自身のTopicだけを Publish/Subscribe/Receive できるようにする。
-    const thingNamePolicyVariable = "${iot:Connection.Thing.ThingName}";
+    const thingNamePolicyVariable = "${iot:Connection.Thing.ThingName}";  // ポリシー内にThingNameを埋め込むことでデバイスと証明書を1:1とする
     const deviceTopicPrefix = `mqtt/${stageName}/${thingNamePolicyVariable}`;  // Topicは必ず mqtt/<stage_name>/<thing_name>/+/+/... という形式とする
 
     const devicePolicyId = props.context.getResourceId("device-policy")
@@ -143,8 +143,8 @@ export class MainStack extends Stack {
     // ---------------------------------------------------------------------
     // CSR方式では、Claim CertificateでAWS IoTへ接続した後 $aws/certificates/create-from-csr/json にCSRをPublishし、
     // 取得したcertificateOwnershipTokenを使ってRegisterThingを行う。
-    const cliamPolicyId = props.context.getResourceId("fleet-provision-claim-policy")
-    const claimPolicy = new CfnPolicy(this, cliamPolicyId, {
+    const claimPolicyId = props.context.getResourceId("fleet-provision-claim-policy")
+    const claimPolicy = new CfnPolicy(this, claimPolicyId, {
       policyName: claimPolicyName,
       policyDocument: {
         Version: "2012-10-17",
@@ -152,22 +152,34 @@ export class MainStack extends Stack {
           {
             Effect: "Allow",
             Action: ["iot:Connect"],
-            Resource: ["*"],
+            Resource: [
+              `arn:${Aws.PARTITION}:iot:${region}:${accountId}:client/provision-*`  // Claim時に接続可能なClientIDを = "provision-{serialNumber}"に限定する
+            ],
+          },
+          {
+            Effect: "Allow",
+            Action: ["iot:Publish"],
+            Resource: [
+              `arn:${Aws.PARTITION}:iot:${region}:${accountId}:topic/$aws/certificates/create-from-csr/json`,
+              `arn:${Aws.PARTITION}:iot:${region}:${accountId}:topic/$aws/provisioning-templates/${provisioningTemplateName}/provision/json`,
+            ],
           },
           {
             Effect: "Allow",
             Action: ["iot:Publish", "iot:Receive"],
             Resource: [
-              `arn:${Aws.PARTITION}:iot:${region}:${accountId}:` + "topic/$aws/certificates/create-from-csr/*",
-              `arn:${Aws.PARTITION}:iot:${region}:${accountId}:` + `topic/$aws/provisioning-templates/${provisioningTemplateName}/provision/*`,
+              `arn:${Aws.PARTITION}:iot:${region}:${accountId}:topic/$aws/certificates/create-from-csr/json/accepted`,
+              `arn:${Aws.PARTITION}:iot:${region}:${accountId}:topic/$aws/certificates/create-from-csr/json/rejected`,
+              `arn:${Aws.PARTITION}:iot:${region}:${accountId}:topic/$aws/provisioning-templates/${provisioningTemplateName}/provision/json/accepted`,
+              `arn:${Aws.PARTITION}:iot:${region}:${accountId}:topic/$aws/provisioning-templates/${provisioningTemplateName}/provision/json/rejected`,
             ],
           },
           {
             Effect: "Allow",
             Action: ["iot:Subscribe"],
             Resource: [
-              `arn:${Aws.PARTITION}:iot:${region}:${accountId}:` + "topicfilter/$aws/certificates/create-from-csr/*",
-              `arn:${Aws.PARTITION}:iot:${region}:${accountId}:` + `topicfilter/$aws/provisioning-templates/${provisioningTemplateName}/provision/*`,
+              `arn:${Aws.PARTITION}:iot:${region}:${accountId}:topicfilter/$aws/certificates/create-from-csr/*`,
+              `arn:${Aws.PARTITION}:iot:${region}:${accountId}:topicfilter/$aws/provisioning-templates/${provisioningTemplateName}/provision/*`,
             ],
           },
         ],
