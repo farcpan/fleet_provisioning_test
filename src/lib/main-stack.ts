@@ -126,6 +126,7 @@ export class MainStack extends Stack {
     // Thing Policy Variablesを使い、1デバイスが自分自身のTopicだけを Publish/Subscribe/Receive できるようにする。
     const thingNamePolicyVariable = "${iot:Connection.Thing.ThingName}";  // ポリシー内にThingNameを埋め込むことでデバイスと証明書を1:1とする
     const deviceTopicPrefix = `mqtt/${stageName}/${thingNamePolicyVariable}`;  // Topicは必ず mqtt/<stage_name>/<thing_name>/+/+/... という形式とする
+    const jobsTopicPrefix = `$aws/things/${thingNamePolicyVariable}/jobs`;  // IoT Jobsを扱うための特殊なトピック
 
     const devicePolicyId = props.context.getResourceId("device-policy")
     const devicePolicy = new CfnPolicy(this, devicePolicyId, {
@@ -153,6 +154,27 @@ export class MainStack extends Stack {
             Effect: "Allow",
             Action: ["iot:Subscribe"],
             Resource: [`arn:${Aws.PARTITION}:iot:${region}:${accountId}:topicfilter/${deviceTopicPrefix}/*`],
+          },
+
+          // IoT Jobs用のポリシー
+          {
+            Effect: "Allow",
+            Action: [
+              "iot:Publish",
+              "iot:Receive",
+            ],
+            Resource: [
+              `arn:${Aws.PARTITION}:iot:${region}:${accountId}:topic/${jobsTopicPrefix}/*`,
+            ],
+          },
+
+          // Job通知・accepted/rejected等のSubscribe
+          {
+            Effect: "Allow",
+            Action: ["iot:Subscribe"],
+            Resource: [
+              `arn:${Aws.PARTITION}:iot:${region}:${accountId}:topicfilter/${jobsTopicPrefix}/*`,
+            ],
           },
         ],
       },
