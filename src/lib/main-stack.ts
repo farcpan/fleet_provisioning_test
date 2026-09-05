@@ -124,9 +124,12 @@ export class MainStack extends Stack {
               Bool: { "iot:Connection.Thing.IsAttached": "true" },
             },
           },
+          // !!注意!!
+          // 厳密には、Publish/Subscribeするトピックは異なるので、より細かな権限設定が可能
+          // 現時点ではトピック設計が定まっていないため、 "mqtt/${stageName}/${thingNamePolicyVariable}" で統一する
           {
             Effect: "Allow",
-            Action: ["iot:Publish", "iot:RetainPublish", "iot:Receive"],
+            Action: ["iot:Publish", "iot:RetainPublish", "iot:Receive"],  // RetainPublishは暫定仕様として入れておく
             Resource: [`arn:${Aws.PARTITION}:iot:${region}:${accountId}:topic/${deviceTopicPrefix}/*`],
           },
           {
