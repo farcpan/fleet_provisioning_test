@@ -43,8 +43,8 @@ port = 8883
 script_dir = Path(__file__).resolve().parent
 
 # Claim Certificate
-claim_cert = script_dir / "../certs/5e4c1645d913e9b3827df2ddfe056ba13ab52c188fe5d785a163acc97b160395-certificate.pem.crt"
-claim_private_key = script_dir / "../certs/5e4c1645d913e9b3827df2ddfe056ba13ab52c188fe5d785a163acc97b160395-private.pem.key"
+claim_cert = script_dir / "../certs/claim-certificate.pem.crt"
+claim_private_key = script_dir / "../certs/claim-private.key"
 
 # AWS IoT Root CA
 ca_root_cert = script_dir / "../certs/AmazonRootCA1.pem"
