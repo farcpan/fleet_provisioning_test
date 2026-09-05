@@ -75,6 +75,7 @@ AWS CLIを利用してClaim証明書を発行する。
             ```
     - Lambdaがこのトピックを受け取り、ThingNameのチェックと証明書が正しいものかをチェックする
         - ListThingPrincipalsV2を呼び、そのThingに現在紐づいているPrincipal一覧の中に newCertificateId の証明書ARNが存在するか確認する
+        - MQTT通信の principal() を取得することで、対応する証明書が取得可能（principal = 証明書IDとなるため）
     - チェック後に、対象証明書（oldCertificateIdが示す証明書）をINACTIVEに移行する
 ```
 
