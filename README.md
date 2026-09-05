@@ -30,6 +30,56 @@ AWS CLIを利用してClaim証明書を発行する。
 
 ---
 
+## 証明書ローテーションのフロー
+
+```
+① AWS IoTへ通常接続
+   現在の証明書A + 秘密鍵A
+        ↓
+② IoT Jobsを監視
+   notify-next （$aws/things/{thingName}/jobs/notify-next）をSubscribe
+   start-next/accepted （$aws/things/{thingName}/jobs/start-next/accepted）をSubscribe（start-nextの結果を取得するため）
+        ↓
+③ start-next（$aws/things/{thingName}/jobs/start-next）へPublish
+   ROTATE_CERTIFICATE Job取得
+   QUEUED → IN_PROGRESS
+        ↓
+④ 新しい秘密鍵Bを生成
+        ↓
+⑤ 秘密鍵BからCSR Bを生成
+        ↓
+⑥ CSR Bをクラウドへ送信（専用のトピックをクラウド側で定義する★）
+        ↓
+⑦ クラウドが証明書Bを発行（Fleet Provisioningのケースとは異なり、明示的に証明書発行・ポリシーアタッチ・証明書Publish処理を実装する）
+        ↓
+⑧ 証明書Bをデバイスが受信
+        ↓
+⑨ 証明書B + 秘密鍵Bを保存
+   ※証明書Aはまだ消さない
+        ↓
+⑩ 証明書B + 秘密鍵BでAWS IoTへ再接続
+        ↓
+⑪ 接続成功
+        ↓
+⑫ Jobを SUCCEEDED に更新（$aws/things/{thingName}/jobs/{jobId}/update にPublish）
+        ↓
+⑬ クラウド側で証明書AをINACTIVE
+    - 専用のトピックを用意し、デバイスから「完了」をPublishさせる
+        - ex.) mqtt/dev/{thingName}/certificate/rotation/complete
+            ```
+            {
+                "jobId": "cert-rotate-f1cf...",
+                "oldCertificateId": "f1cf53...",
+                "newCertificateId": "abcdef..."
+            }
+            ```
+    - Lambdaがこのトピックを受け取り、ThingNameのチェックと証明書が正しいものかをチェックする
+        - ListThingPrincipalsV2を呼び、そのThingに現在紐づいているPrincipal一覧の中に newCertificateId の証明書ARNが存在するか確認する
+    - チェック後に、対象証明書（oldCertificateIdが示す証明書）をINACTIVEに移行する
+```
+
+---
+
 ## 参考
 
 * [量産デバイスや大量のデバイスに個別の認証情報を発行する方法について](https://aws.amazon.com/jp/blogs/news/manage-credential-with-fleet-provisioning-in-mass-production/)
