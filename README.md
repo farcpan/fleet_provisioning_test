@@ -2,46 +2,31 @@
 
 ## 手動作業
 
-* 証明書発行（クレーム証明書）
-* クレーム証明書用のポリシーを作成し、クレーム証明書にアタッチする
-    * 参考: https://docs.aws.amazon.com/ja_jp/iot/latest/developerguide/provision-wo-cert.html#claim-based
+### Claim証明書発行
 
-```
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Action": ["iot:Connect"],
-            "Resource": "*"
-        },
-        {
-            "Effect": "Allow",
-            "Action": ["iot:Publish","iot:Receive"],
-            "Resource": [
-                "arn:aws:iot:ap-northeast-1:910136156309:topic/$aws/certificates/create/*",
-                "arn:aws:iot:ap-northeast-1:910136156309:topic/$aws/provisioning-templates/es-test-template-1719586233194/provision/*"
-            ]
-        },
-        {
-            "Effect": "Allow",
-            "Action": "iot:Subscribe",
-            "Resource": [
-                "arn:aws:iot:ap-northeast-1:910136156309:topicfilter/$aws/certificates/create/*",
-                "arn:aws:iot:ap-northeast-1:910136156309:topicfilter/$aws/provisioning-templates/es-test-template-1719586233194/provision/*"
-            ]
-        }
-    ]
-}
-```
+AWS CLIを利用してClaim証明書を発行する。
 
+* 以下コマンドを実行
+    ```
+    aws iot create-keys-and-certificate --set-as-active --certificate-pem-outfile=claim-certificate.pem.crt --public-key-outfile=claim-public.key --private-key-outfile=claim-private.key --region=ap-northeast-1 --profile=<your profile if required.>
+    ```
+* 取得した証明書と鍵一式を `certs` フォルダ内に保存する
+    * 証明書: claim-certificate.pem.crt
+    * 秘密鍵: claim-private.key
+        * 厳重に管理する
+    * 公開鍵: claim-public.key
+        * 証明書内にも含まれており、公開鍵を明示的に扱うことはない
 * AWS CDK実行によって生成されたテンプレート名を`provisioning.py`に記述する（証明書発行用のトピックで指定する必要がある）
+* 取得した証明書のARNを控えておく
+    * arn:aws:iot:ap-northeast-1:<account_id>>:cert/<certificate id>
 
----
+### AWSサーバ証明書取得
 
-## 注意事項
-
-* テンプレートの差し替えを行った場合、クレーム証明書に紐づくポリシーも修正が必要（テンプレート名を参照しているため）
+* 以下コマンド実行
+    ```bash
+    curl -o AmazonRootCA1.pem https://www.amazontrust.com/repository/AmazonRootCA1.pem
+    ```
+* `certs`フォルダ内に保存する
 
 ---
 
