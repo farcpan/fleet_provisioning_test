@@ -9,12 +9,17 @@ import {
   CfnPolicyPrincipalAttachment,
   CfnProvisioningTemplate,
   CfnTopicRule,
+  CfnAccountAuditConfiguration,
+  CfnScheduledAudit,
 } from "aws-cdk-lib/aws-iot";
 import {
   ManagedPolicy,
   Role,
   ServicePrincipal,
+  PolicyStatement
 } from "aws-cdk-lib/aws-iam";
+import { Topic } from "aws-cdk-lib/aws-sns";
+import { LambdaSubscription } from "aws-cdk-lib/aws-sns-subscriptions";
 import { ContextParameters } from "../utils/context";
 
 // !! 注意事項 !!
@@ -23,6 +28,7 @@ import { ContextParameters } from "../utils/context";
 // - 現状の実装では、シリアル番号からThingNameを構築する際に、MonitorDev_{stageName}_{serialNumber}としている。
 //   証明書取得後のMQTT接続時のClient IDは必ずThingNameと一致させること。
 // - Claim時にはClientIDを "provision_{serialNumber}"とする必要がある。
+// - AWS IoT Core が生成する X.509 クライアント証明書は、現行仕様では 2049-12-31 23:59:59 UTC 固定
 ///////////////////////////////////////////////////////////////////////////
 
 interface MainStackProps extends StackProps {
@@ -337,5 +343,103 @@ export class MainStack extends Stack {
       sourceAccount: accountId,
       sourceArn: topicRuleArn,
     });
+
+
+    // ---------------------------------------------------------------------
+    // Device Defender監査
+    // ---------------------------------------------------------------------
+    // 監査用Role
+    const auditRoleId = props.context.getResourceId("iot-device-defender-audit-role");
+    const auditRole = new Role(this, auditRoleId, {
+      roleName: auditRoleId,
+      assumedBy: new ServicePrincipal("iot.amazonaws.com"),
+      managedPolicies: [
+        ManagedPolicy.fromAwsManagedPolicyName(
+          "service-role/AWSIoTDeviceDefenderAudit"
+        ),
+      ],
+    });
+
+    // 監査結果をSNS経由で通知する
+    const defenderAuditNotificationTopicId = props.context.getResourceId("iot-defender-audit-notification-topic");
+    const defenderAuditNotificationTopic = new Topic(this, defenderAuditNotificationTopicId, { topicName: defenderAuditNotificationTopicId });
+    const certificateRotationRequestLambdaFunctionPath = join(__dirname, "../lambdas/certificate-rotation-request.ts");
+    const certificateRotationRequestLambdaFunctionName = props.context.getResourceId("certificate-rotation-request-fn");
+    const certificateRotationRequestLambdaFunction = new NodejsFunction(this, certificateRotationRequestLambdaFunctionName, {
+      functionName: certificateRotationRequestLambdaFunctionName,
+      entry: certificateRotationRequestLambdaFunctionPath,
+      handler: "handler",
+      logGroup: iotCoreLambdaLogGroup,
+      timeout: Duration.minutes(5),
+      runtime: Runtime.NODEJS_22_X,
+      environment: {
+        STAGE_NAME: stageName,
+        ACCOUNT_ID: accountId,
+        PARTITION: Aws.PARTITION,
+      },
+    });
+
+    // IoT監査結果取得・IoT Job作成権限をLambdaに与えるためのポリシー
+    certificateRotationRequestLambdaFunction.addToRolePolicy(
+      new PolicyStatement({
+        actions: [
+          "iot:ListAuditFindings",
+          "iot:ListPrincipalThingsV2",
+          "iot:CreateJob",
+        ],
+        resources: ["*"],
+      })
+    );
+
+    // Topicに、Lambdaを起動するSubscriptionを追加
+    defenderAuditNotificationTopic.addSubscription(new LambdaSubscription(certificateRotationRequestLambdaFunction));
+
+    // Device DefenderがSNSへPublishできるようにRole付与
+    defenderAuditNotificationTopic.grantPublish(auditRole);
+
+    // 監査設定
+    const auditConfigurationId = props.context.getResourceId("iot-account-audit-config");
+    const auditConfiguration = new CfnAccountAuditConfiguration(this, auditConfigurationId, {
+      accountId: accountId,
+      roleArn: auditRole.roleArn,
+
+      // 監査に通知方法を定義
+      auditNotificationTargetConfigurations: {
+        sns: {
+          enabled: true,
+          roleArn: auditRole.roleArn,
+          targetArn: defenderAuditNotificationTopic.topicArn,
+        },
+      },
+
+      auditCheckConfigurations: {
+        // 運用上の定期ローテーション
+        deviceCertificateAgeCheck: {
+          enabled: true,
+          configuration: {
+            certAgeThresholdInDays: "1",  // 1日で通知
+          },
+        },
+
+        // X.509証明書そのものの期限切れ監視
+        deviceCertificateExpiringCheck: {
+          enabled: true,
+        },
+      },
+    });
+
+    // 監査スケジュール
+    const scheuledAuditId = props.context.getResourceId("iot-cert-daily-audit");
+    const scheduledAudit = new CfnScheduledAudit(this, scheuledAuditId, {
+      // scheduledAuditName: scheuledAuditId,
+      frequency: "DAILY",
+      targetCheckNames: [
+        "DEVICE_CERTIFICATE_AGE_CHECK",
+        "DEVICE_CERTIFICATE_EXPIRING_CHECK",
+      ],
+    });
+
+    scheduledAudit.addResourceDependency(auditConfiguration);
+
   }
 }
