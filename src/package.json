@@ -8,7 +8,10 @@
     "build": "tsc",
     "watch": "tsc -w",
     "test": "jest",
-    "cdk": "cdk"
+    "cdk": "cdk",
+    "deploy command": "-----------------------------------------",
+    "dif-dev-all": "cdk diff -c stage=dev --profile=dev",
+    "dep-dev-all": "cdk deploy -c stage=dev --all --require-approval=never --profile=dev"
   },
   "devDependencies": {
     "@swc/core": "^1.15.0",
