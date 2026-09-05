@@ -1,9 +1,9 @@
-import { Aws, Duration, Stack, StackProps } from "aws-cdk-lib";
+import { Aws, Duration, RemovalPolicy, Stack, StackProps } from "aws-cdk-lib";
 import { Construct } from "constructs";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { Runtime } from "aws-cdk-lib/aws-lambda";
 import { join } from "path";
-import { RetentionDays } from "aws-cdk-lib/aws-logs";
+import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import {
   CfnPolicy,
   CfnPolicyPrincipalAttachment,
@@ -22,7 +22,7 @@ import { ContextParameters } from "../utils/context";
 // - Topic定義には必ず環境名（prd/stg/devなど）を入れ、通信が混在しないようにすること
 // - 現状の実装では、シリアル番号からThingNameを構築する際に、MonitorDev_{stageName}_{serialNumber}としている。
 //   証明書取得後のMQTT接続時のClient IDは必ずThingNameと一致させること。
-// - Claim時にはClientIDをProvision_{serialNumber}とする必要がある。
+// - Claim時にはClientIDを "provision_{serialNumber}"とする必要がある。
 ///////////////////////////////////////////////////////////////////////////
 
 interface MainStackProps extends StackProps {
@@ -53,6 +53,17 @@ export class MainStack extends Stack {
     const claimPolicyName = `FleetProvisioningClaimPolicy${stageName.toUpperCase()}`;
 
     // ---------------------------------------------------------------------
+    // Lambdaログ出力用LogGroup定義
+    // ---------------------------------------------------------------------
+    const iotCoreLambdaLogGroup = new LogGroup(this, props.context.getResourceId("lambda-log-group"),
+      {
+        logGroupName: `/device_monitor/${stageName}/lambda/iot_core`,
+        retention: RetentionDays.ONE_DAY,
+        removalPolicy: RemovalPolicy.DESTROY,
+      }
+    );
+
+    // ---------------------------------------------------------------------
     // Lambda: 通常のMQTTメッセージ処理
     // ---------------------------------------------------------------------
     const iotTriggeredLambdaFunctionPath = join(__dirname, "../lambdas/index.ts");
@@ -61,7 +72,7 @@ export class MainStack extends Stack {
       functionName: iotTriggeredLambdaFunctionName,
       entry: iotTriggeredLambdaFunctionPath,
       handler: "handler",
-      logRetention: RetentionDays.ONE_DAY,
+      logGroup: iotCoreLambdaLogGroup,
       timeout: Duration.seconds(30),
       runtime: Runtime.NODEJS_22_X,
     });
@@ -80,7 +91,7 @@ export class MainStack extends Stack {
       functionName: preProvisionHookLambdaFunctionName,
       entry: preProvisionHookLambdaFunctionPath,
       handler: "handler",
-      logRetention: RetentionDays.ONE_DAY,
+      logGroup: iotCoreLambdaLogGroup,
       // AWS IoTのPre-provisioning hookは5秒以内に応答する必要がある。
       timeout: Duration.seconds(5),
       runtime: Runtime.NODEJS_22_X,
@@ -169,7 +180,7 @@ export class MainStack extends Stack {
           },
           {
             Effect: "Allow",
-            Action: ["iot:Publish", "iot:Receive"],
+            Action: ["iot:Receive"],
             Resource: [
               `arn:${Aws.PARTITION}:iot:${region}:${accountId}:topic/$aws/certificates/create-from-csr/json/accepted`,
               `arn:${Aws.PARTITION}:iot:${region}:${accountId}:topic/$aws/certificates/create-from-csr/json/rejected`,
