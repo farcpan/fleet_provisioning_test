@@ -1,5 +1,5 @@
 {
-  "app": "npx tsc && npx tsx bin/src.ts",
+  "app": "npx tsc --noEmit && npx tsx bin/src.ts",
   "watch": {
     "include": [
       "**"

@@ -3,4 +3,7 @@ device/.venv
 device/*.crt
 device/*.key
 
+# 設定ファイル除外
+src/cdk.dev.json
+
 .DS_Store
