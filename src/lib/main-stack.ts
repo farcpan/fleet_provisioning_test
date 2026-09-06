@@ -207,25 +207,13 @@ export class MainStack extends Stack {
           {
             Effect: "Allow",
             Action: ["iot:Receive"],
-            Resource: [
-              `${shadowTopicBase}/get/accepted`,
-              `${shadowTopicBase}/get/rejected`,
-              `${shadowTopicBase}/update/accepted`,
-              `${shadowTopicBase}/update/rejected`,
-              `${shadowTopicBase}/update/delta`,
-            ]
+            Resource: [`${shadowTopicBase}/*`]
           },
           /// シャドウのSubscribe
           {
             Effect: "Allow",
             Action: ["iot:Subscribe"],
-            Resource: [
-              `${shadowTopicFilterBase}/get/accepted`,
-              `${shadowTopicFilterBase}/get/rejected`,
-              `${shadowTopicFilterBase}/update/accepted`,
-              `${shadowTopicFilterBase}/update/rejected`,
-              `${shadowTopicFilterBase}/update/delta`,
-            ]
+            Resource: [`${shadowTopicFilterBase}/*`]
           },        
 
           // IoT Jobs用のポリシー
