@@ -7,6 +7,10 @@ const app = new cdk.App();
 const context = new ContextParameters(app);
 
 const apiStack = new ApiStack(app, context.getResourceId("api-stack"), {
+  env: {
+    account: process.env.CDK_DEFAULT_ACCOUNT!,
+    region: context.stageParameters.region,
+  },
   context: context,
 });
 
