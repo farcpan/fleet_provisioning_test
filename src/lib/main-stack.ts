@@ -13,6 +13,7 @@ import {
   CfnScheduledAudit,
 } from "aws-cdk-lib/aws-iot";
 import {
+  Effect, 
   ManagedPolicy,
   Role,
   ServicePrincipal,
@@ -50,6 +51,8 @@ export class MainStack extends Stack {
     const accountId = props.env.account;
     const region = props.env.region;
     const stageName = props.context.stage;
+
+    const shadowName = "config";  // 名前付きシャドウの名称
 
     // プロビジョニング用テンプレート定義
     const provisioningTemplateName = `fleet-provision-template-${stageName}`;
@@ -103,6 +106,32 @@ export class MainStack extends Stack {
     // DescribeThing等の必要なActionを個別に追加すること。
 
     // ---------------------------------------------------------------------
+    // Lambda: Shadow Updater
+    // ---------------------------------------------------------------------
+    const shadowUpdaterLambdaFunctionPath = join(__dirname, "../lambdas/shadow-updater.ts");
+    const shadowUpdaterLambdaFunctionName = props.context.getResourceId("shadow-updater-fn")
+    const shadowUpdaterLambdaFunction = new NodejsFunction(this, shadowUpdaterLambdaFunctionName, {
+      functionName: shadowUpdaterLambdaFunctionName,
+      entry: shadowUpdaterLambdaFunctionPath,
+      handler: "handler",
+      logGroup: iotCoreLambdaLogGroup,
+      timeout: Duration.seconds(10),
+      runtime: Runtime.NODEJS_22_X,
+      environment: {
+        SHADOW_NAME: shadowName,
+      },
+    });
+    shadowUpdaterLambdaFunction.addToRolePolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: ["iot:UpdateThingShadow"],
+        resources: [
+          `arn:${Aws.PARTITION}:iot:${region}:${accountId}:thing/*/${shadowName}`,
+        ],
+      })
+    );
+
+    // ---------------------------------------------------------------------
     // Lambda: Pre-provisioning hook
     // ---------------------------------------------------------------------
     const preProvisionHookLambdaFunctionPath = join(__dirname, "../lambdas/hook.ts");
@@ -142,6 +171,9 @@ export class MainStack extends Stack {
     const deviceTopicPrefix = `mqtt/${stageName}/${thingNamePolicyVariable}`;  // Topicは必ず mqtt/<stage_name>/<thing_name>/+/+/... という形式とする
     const jobsTopicPrefix = `$aws/things/${thingNamePolicyVariable}/jobs`;  // IoT Jobsを扱うための特殊なトピック
 
+    const shadowTopicBase = `arn:${Aws.PARTITION}:iot:${region}:${accountId}:topic/$aws/things/${thingNamePolicyVariable}/shadow/name/${shadowName}`;
+    const shadowTopicFilterBase = `arn:${Aws.PARTITION}:iot:${region}:${accountId}:topicfilter/$aws/things/${thingNamePolicyVariable}/shadow/name/${shadowName}`;
+
     const devicePolicyId = props.context.getResourceId("device-policy")
     const devicePolicy = new CfnPolicy(this, devicePolicyId, {
       policyName: devicePolicyName,
@@ -169,6 +201,32 @@ export class MainStack extends Stack {
             Action: ["iot:Subscribe"],
             Resource: [`arn:${Aws.PARTITION}:iot:${region}:${accountId}:topicfilter/${deviceTopicPrefix}/*`],
           },
+
+          // シャドウ用のポリシー
+          /// シャドウからのメッセージ受信
+          {
+            Effect: "Allow",
+            Action: ["iot:Receive"],
+            Resource: [
+              `${shadowTopicBase}/get/accepted`,
+              `${shadowTopicBase}/get/rejected`,
+              `${shadowTopicBase}/update/accepted`,
+              `${shadowTopicBase}/update/rejected`,
+              `${shadowTopicBase}/update/delta`,
+            ]
+          },
+          /// シャドウのSubscribe
+          {
+            Effect: "Allow",
+            Action: ["iot:Subscribe"],
+            Resource: [
+              `${shadowTopicFilterBase}/get/accepted`,
+              `${shadowTopicFilterBase}/get/rejected`,
+              `${shadowTopicFilterBase}/update/accepted`,
+              `${shadowTopicFilterBase}/update/rejected`,
+              `${shadowTopicFilterBase}/update/delta`,
+            ]
+          },        
 
           // IoT Jobs用のポリシー
           {
