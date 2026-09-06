@@ -94,6 +94,17 @@ AWS CLIを利用してClaim証明書を発行する。
 
 ---
 
+## 現状の実装内容
+
+* ✅Fleet Provisioning + CSR方式による証明書発行処理
+* ☐証明書ローテーション用のIoT Core DefenderとIoT Jobsの設定
+* ✅IoT CoreによってトリガーされるLambda関数の実装 
+    * ClientIDからシリアル番号を抽出
+    * タイムスタンプを生成し、AppSync Event APIにPublish
+* ☐クライアントアプリケーションからAppSync Event APIへのPublishをSubscribeし、Lambdaを実行する 
+
+---
+
 ## 参考
 
 * [量産デバイスや大量のデバイスに個別の認証情報を発行する方法について](https://aws.amazon.com/jp/blogs/news/manage-credential-with-fleet-provisioning-in-mass-production/)
