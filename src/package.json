@@ -19,12 +19,12 @@
     "@types/aws-lambda": "^8.10.162",
     "@types/jest": "^30",
     "@types/node": "^24.10.1",
+    "aws-cdk": "2.1140.0",
     "aws-lambda": "^1.0.7",
+    "esbuild": "^0.28.2",
     "jest": "^30",
     "prettier": "^3.9.6",
     "tsx": "^4.23.0",
-    "aws-cdk": "2.1140.0",
-    "esbuild": "^0.28.2",
     "typescript": "~7.0.2"
   },
   "dependencies": {
@@ -32,6 +32,7 @@
     "@aws-sdk/client-iot": "^3.1127.0",
     "aws-cdk-lib": "2.268.0",
     "constructs": "^10.8.1",
+    "ob-appsync-events-request": "^0.0.7",
     "source-map-support": "^0.5.21"
   }
 }

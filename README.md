@@ -81,6 +81,30 @@ AWS CLIを利用してClaim証明書を発行する。
 
 ---
 
+## AppSync Event APIとの接続
+
+将来的にはCognito認証を行う。
+
+現状はIAM認証で構築し、AWSマネジメントコンソール上でテストする前提。
+
+* AppSyncのページに移動し、構築したEventAPIを選択
+* Pub/Subテストのページに移動し、 Namespace `app` をサブスクライブする
+* `device/main.py` を実行し、IoT Core→Lambda→AppSync の処理を実行させる
+* サブスクライブしたNamespaceに対して、データが送信されることをマネジメントコンソール上で確認する
+
+---
+
+## 現状の実装内容
+
+* ✅Fleet Provisioning + CSR方式による証明書発行処理
+* ☐証明書ローテーション用のIoT Core DefenderとIoT Jobsの設定
+* ✅IoT CoreによってトリガーされるLambda関数の実装 
+    * ClientIDからシリアル番号を抽出
+    * タイムスタンプを生成し、AppSync Event APIにPublish
+* ☐クライアントアプリケーションからAppSync Event APIへのPublishをSubscribeし、Lambdaを実行する 
+
+---
+
 ## 参考
 
 * [量産デバイスや大量のデバイスに個別の認証情報を発行する方法について](https://aws.amazon.com/jp/blogs/news/manage-credential-with-fleet-provisioning-in-mass-production/)
