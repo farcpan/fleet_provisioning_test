@@ -21,6 +21,7 @@ import {
 import { Topic } from "aws-cdk-lib/aws-sns";
 import { LambdaSubscription } from "aws-cdk-lib/aws-sns-subscriptions";
 import { ContextParameters } from "../utils/context";
+import { EventApi } from "aws-cdk-lib/aws-appsync";
 
 // !! 注意事項 !!
 ///////////////////////////////////////////////////////////////////////////
@@ -38,6 +39,8 @@ interface MainStackProps extends StackProps {
   };
 
   context: ContextParameters;
+
+  eventApi: EventApi; // AppSync Event API
 }
 
 export class MainStack extends Stack {
@@ -81,7 +84,18 @@ export class MainStack extends Stack {
       logGroup: iotCoreLambdaLogGroup,
       timeout: Duration.seconds(30),
       runtime: Runtime.NODEJS_22_X,
+      environment: {
+        // Lambda側では、このEndpointにPOSTしてAppSync EventsへPublishする。
+        APPSYNC_EVENT_HTTP_ENDPOINT: `https://${props.eventApi.httpDns}/event`,
+
+        // Lambda側で
+        // app/<serialNumber>/realtime
+        // を構築するためのnamespace
+        APPSYNC_CHANNEL_NAMESPACE: "app",
+        STAGE_NAME: props.context.stage,
+      },
     });
+    props.eventApi.grantPublish(iotTriggeredLambdaFunction);  // Lambda関数にEventAPIへのPublish権限を付与
 
     // NOTE:
     // 元コードにあった iot:* は削除した。
