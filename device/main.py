@@ -12,7 +12,7 @@ from paho.mqtt import client as mqtt_client
 stage_name = "dev"
 
 # serial number
-serial_number = "S00002"
+serial_number = "S00001"
 
 # Fleet Provisioning Templateで生成されるThingName
 thing_name = f"MonitorDev_{stage_name}_{serial_number}"
