@@ -206,7 +206,7 @@ export class MainStack extends Stack {
           /// シャドウからのメッセージ受信
           {
             Effect: "Allow",
-            Action: ["iot:Receive"],
+            Action: ["iot:Receive", "iot:Publish"],
             Resource: [`${shadowTopicBase}/*`]
           },
           /// シャドウのSubscribe
