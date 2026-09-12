@@ -198,6 +198,13 @@ export class MainStack extends Stack {
           },
           {
             Effect: "Allow",
+            Action: ["iot:Publish"],
+            Resource: [
+              `arn:${Aws.PARTITION}:iot:${region}:${accountId}:topic/$aws/rules/*/${deviceTopicPrefix}/*`
+            ],
+          },
+          {
+            Effect: "Allow",
             Action: ["iot:Subscribe"],
             Resource: [`arn:${Aws.PARTITION}:iot:${region}:${accountId}:topicfilter/${deviceTopicPrefix}/*`],
           },

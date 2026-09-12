@@ -34,10 +34,12 @@ port = 8883
 
 # 通常データ送信用Topic
 topic = f"mqtt/{stage_name}/{thing_name}/hoge"
+# Basic Ingest用のTopic
+ruleName = f"test_topic_rule_${stage_name}"
+topic_for_basic_ingest = f"$aws/rules/{ruleName}/{topic}"
 
 # 10秒周期でデータ送信
 publish_interval_sec = 10
-
 
 # ----------------------------------------------------------------------
 # Named Device Shadow
@@ -193,7 +195,8 @@ def publish_worker(client):
         print(json.dumps(payload, ensure_ascii=False, indent=2))
 
         client.publish(
-            topic,
+            #topic,
+            topic_for_basic_ingest,
             json.dumps(payload),
             qos=1,
         )
@@ -220,6 +223,7 @@ def subscribe_shadow_topics(client):
     Named Shadow "config" で利用するTopicをSubscribeする。
     """
     topics = [
+        (topic, 1), # Publishを確認するためのサブスクライブ
         (shadow_get_accepted_topic, 1),
         (shadow_get_rejected_topic, 1),
         (shadow_update_delta_topic, 1),
@@ -308,6 +312,10 @@ def on_message(client, userdata, msg):
 
     elif msg.topic == shadow_update_rejected_topic:
         print("Shadow update rejected:")
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        # Publishへの応答確認
+        print("Publish -> Subscribe")
         print(json.dumps(payload, ensure_ascii=False, indent=2))
 
 
